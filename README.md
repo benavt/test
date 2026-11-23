@@ -11,9 +11,11 @@ A lightweight, zero-dependency arcade snake game built with vanilla HTML, CSS, a
 - Local high-score persistence (`localStorage`)
 - Keyboard (`Arrow Keys` / `WASD`, `Space` to pause) and mobile touch D-pad controls
 
-## Play Locally
+## Play
 
-No build step or dependencies required — just open `index.html` in your browser:
+Play online via GitHub Pages: **https://benavt.github.io/test/**
+
+Or play locally (no build step or dependencies required) — just open `index.html` in your browser:
 
 ```bash
 open index.html

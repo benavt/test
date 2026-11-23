@@ -19,13 +19,44 @@
   const MIN_STEP_MS = 60;
   const BEST_KEY = "neon-snake-best-v1";
 
+  function readBest() {
+    try {
+      return Number(window.localStorage.getItem(BEST_KEY) || 0) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function writeBest(value) {
+    try {
+      window.localStorage.setItem(BEST_KEY, String(value));
+    } catch {
+      // Ignore storage errors on restricted/file:// origins
+    }
+  }
+
+  function drawRoundedRect(x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
   let snake = [];
   let dir = { x: 1, y: 0 };
-  let nextDir = { x: 1, y: 0 };
+  let dirQueue = [];
   let food = { x: 12, y: 10 };
   let particles = [];
   let score = 0;
-  let best = Number(localStorage.getItem(BEST_KEY) || 0);
+  let best = readBest();
   let wrapWalls = false;
   let soundOn = true;
   let running = false;
@@ -38,9 +69,13 @@
   function beep(freq, duration = 0.08, type = "triangle", volume = 0.08) {
     if (!soundOn) return;
     try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
       if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
       }
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -107,7 +142,7 @@
       { x: 4, y: 10 },
     ];
     dir = { x: 1, y: 0 };
-    nextDir = { x: 1, y: 0 };
+    dirQueue = [];
     particles = [];
     score = 0;
     paused = false;
@@ -117,6 +152,7 @@
     updateHud();
     overlay.classList.add("hidden");
     pauseBtn.textContent = "Pause";
+    startBtn.blur();
     beep(440, 0.08, "sine");
   }
 
@@ -124,7 +160,7 @@
     running = false;
     if (score > best) {
       best = score;
-      localStorage.setItem(BEST_KEY, String(best));
+      writeBest(best);
       updateHud();
     }
     overlayTitle.textContent = won ? "YOU WIN!" : "GAME OVER";
@@ -134,10 +170,18 @@
     beep(won ? 660 : 150, 0.22, "sawtooth", 0.09);
   }
 
-  function setDirection(nx, ny) {
-    if (!running || paused) return;
-    if (nx === -dir.x && ny === -dir.y) return;
-    nextDir = { x: nx, y: ny };
+  function queueDirection(nx, ny) {
+    if (!running) {
+      resetGame();
+    }
+    if (paused) return;
+    const ref = dirQueue.length > 0 ? dirQueue[dirQueue.length - 1] : dir;
+    if ((nx === ref.x && ny === ref.y) || (nx === -ref.x && ny === -ref.y)) {
+      return;
+    }
+    if (dirQueue.length < 2) {
+      dirQueue.push({ x: nx, y: ny });
+    }
   }
 
   function togglePause() {
@@ -156,7 +200,9 @@
   }
 
   function tick() {
-    dir = nextDir;
+    if (dirQueue.length > 0) {
+      dir = dirQueue.shift();
+    }
     let nx = snake[0].x + dir.x;
     let ny = snake[0].y + dir.y;
 
@@ -182,7 +228,7 @@
       score += 1;
       if (score > best) {
         best = score;
-        localStorage.setItem(BEST_KEY, String(best));
+        writeBest(best);
       }
       burst(food.x, food.y, "#4ade80");
       beep(520 + Math.min(score * 14, 320), 0.09, "triangle");
@@ -217,7 +263,7 @@
     const pulse = 0.85 + Math.sin(now / 180) * 0.15;
     const cx = food.x * CELL + CELL / 2;
     const cy = food.y * CELL + CELL / 2;
-    const radius = (CELL * 0.34) * pulse;
+    const radius = CELL * 0.34 * pulse;
 
     ctx.save();
     ctx.shadowColor = "#f43f5e";
@@ -251,8 +297,7 @@
         const lightness = Math.round(58 - t * 22);
         ctx.fillStyle = `hsl(188, 90%, ${lightness}%)`;
       }
-      ctx.beginPath();
-      ctx.roundRect(x, y, size, size, 6);
+      drawRoundedRect(x, y, size, size, 6);
       ctx.fill();
       ctx.restore();
     });
@@ -294,14 +339,14 @@
 
   window.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
-    if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "enter"].includes(key)) {
       e.preventDefault();
     }
-    if (key === "arrowup" || key === "w") setDirection(0, -1);
-    else if (key === "arrowdown" || key === "s") setDirection(0, 1);
-    else if (key === "arrowleft" || key === "a") setDirection(-1, 0);
-    else if (key === "arrowright" || key === "d") setDirection(1, 0);
-    else if (key === " ") {
+    if (key === "arrowup" || key === "w") queueDirection(0, -1);
+    else if (key === "arrowdown" || key === "s") queueDirection(0, 1);
+    else if (key === "arrowleft" || key === "a") queueDirection(-1, 0);
+    else if (key === "arrowright" || key === "d") queueDirection(1, 0);
+    else if (key === " " || key === "enter") {
       if (!running) resetGame();
       else togglePause();
     }
@@ -312,15 +357,20 @@
     else resetGame();
   });
 
-  pauseBtn.addEventListener("click", togglePause);
+  pauseBtn.addEventListener("click", () => {
+    pauseBtn.blur();
+    togglePause();
+  });
 
   wrapBtn.addEventListener("click", () => {
+    wrapBtn.blur();
     wrapWalls = !wrapWalls;
     wrapBtn.textContent = wrapWalls ? "Walls: Wrap" : "Walls: Solid";
     wrapBtn.setAttribute("aria-pressed", String(wrapWalls));
   });
 
   soundBtn.addEventListener("click", () => {
+    soundBtn.blur();
     soundOn = !soundOn;
     soundBtn.textContent = soundOn ? "Sound: On" : "Sound: Off";
     soundBtn.setAttribute("aria-pressed", String(soundOn));
@@ -329,12 +379,33 @@
   document.querySelectorAll(".dpad-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const d = btn.dataset.dir;
-      if (d === "up") setDirection(0, -1);
-      if (d === "down") setDirection(0, 1);
-      if (d === "left") setDirection(-1, 0);
-      if (d === "right") setDirection(1, 0);
+      if (d === "up") queueDirection(0, -1);
+      if (d === "down") queueDirection(0, 1);
+      if (d === "left") queueDirection(-1, 0);
+      if (d === "right") queueDirection(1, 0);
     });
   });
+
+  // Touch swipe support on the canvas
+  let touchStart = null;
+  canvas.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  }, { passive: true });
+
+  canvas.addEventListener("touchend", (e) => {
+    if (!touchStart || e.changedTouches.length === 0) return;
+    const dx = e.changedTouches[0].clientX - touchStart.x;
+    const dy = e.changedTouches[0].clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      queueDirection(dx > 0 ? 1 : -1, 0);
+    } else {
+      queueDirection(0, dy > 0 ? 1 : -1);
+    }
+  }, { passive: true });
 
   // Initial attract state on board
   snake = [
