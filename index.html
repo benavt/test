@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Snake</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <h1>NEON<span>SNAKE</span></h1>
+      <div class="scoreboard">
+        <div class="stat">
+          <span class="label">SCORE</span>
+          <span id="score" class="value">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">BEST</span>
+          <span id="best" class="value">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">SPEED</span>
+          <span id="speed" class="value">1x</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="stage-wrap">
+      <canvas id="board" width="480" height="480" aria-label="Neon Snake game board"></canvas>
+      <div id="overlay" class="overlay">
+        <h2 id="overlay-title">NEON SNAKE</h2>
+        <p id="overlay-subtitle">Eat glowing orbs. Don't crash.</p>
+        <button id="start-btn" class="btn primary">Start Game</button>
+        <p class="hint">Arrow keys / WASD to move &middot; Space to pause</p>
+      </div>
+    </section>
+
+    <footer class="controls">
+      <div class="toggles">
+        <button id="wrap-btn" class="btn" aria-pressed="false">Walls: Solid</button>
+        <button id="sound-btn" class="btn" aria-pressed="true">Sound: On</button>
+        <button id="pause-btn" class="btn">Pause</button>
+      </div>
+      <div class="dpad" aria-label="Touch directional controls">
+        <button class="dpad-btn up" data-dir="up" aria-label="Up">▲</button>
+        <button class="dpad-btn left" data-dir="left" aria-label="Left">◀</button>
+        <button class="dpad-btn down" data-dir="down" aria-label="Down">▼</button>
+        <button class="dpad-btn right" data-dir="right" aria-label="Right">▶</button>
+      </div>
+    </footer>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
